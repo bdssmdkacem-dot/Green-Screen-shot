@@ -27,17 +27,17 @@ class _CameraStudioPageState extends State<CameraStudioPage> with WidgetsBinding
   Future<void> _start() async {
     try {
       final cam=await Permission.camera.request(), mic=await Permission.microphone.request();
-      if(!cam.isGranted||!mic.isGranted){setState(()=>{_initializing=false,_error='Camera and microphone permissions are required.'});return;}
+      if(!cam.isGranted||!mic.isGranted){setState(() {_initializing=false,_error='Camera and microphone permissions are required.'});return;}
       _cameras=await availableCameras(); if(_cameras.isEmpty) throw StateError('No camera found on this device.');
       await _openCamera(_cameraIndex);
-    } catch(e){if(mounted)setState(()=>{_initializing=false,_error=e.toString()});}
+    } catch(e){if(mounted)setState(() {_initializing=false,_error=e.toString()});}
   }
   Future<void> _openCamera(int index) async {
     final old=_controller;_controller=null;await old?.dispose();
     final c=CameraController(_cameras[index],ResolutionPreset.high,enableAudio:true,imageFormatGroup:ImageFormatGroup.yuv420);
     try{await c.initialize();await c.setFlashMode(_flash);if(!mounted){await c.dispose();return;}
-      setState(()=>{_controller=c,_cameraIndex=index,_initializing=false,_error=null});}
-    catch(e){await c.dispose();if(mounted)setState(()=>{_initializing=false,_error=e.toString()});}
+      setState(() {_controller=c,_cameraIndex=index,_initializing=false,_error=null});}
+    catch(e){await c.dispose();if(mounted)setState(() {_initializing=false,_error=e.toString()});}
   }
   Future<void> _switchCamera() async {if(_cameras.length<2||_recording)return;setState(()=>_initializing=true);await _openCamera((_cameraIndex+1)%_cameras.length);}
   Future<void> _toggleFlash() async {
@@ -48,7 +48,7 @@ class _CameraStudioPageState extends State<CameraStudioPage> with WidgetsBinding
   Future<void> _toggleRecording() async {
     final c=_controller;if(c==null||!c.value.isInitialized||_saving)return;
     if(c.value.isRecordingVideo){await _stopRecording();return;}
-    try{await c.startVideoRecording();setState(()=>{_recording=true,_seconds=0});
+    try{await c.startVideoRecording();setState(() {_recording=true,_seconds=0});
       _recordTimer?.cancel();_recordTimer=Timer.periodic(const Duration(seconds:1),(_){if(mounted)setState(()=>_seconds++);});}
     catch(e){if(mounted)_message('Could not start recording: $e');}
   }
@@ -58,8 +58,8 @@ class _CameraStudioPageState extends State<CameraStudioPage> with WidgetsBinding
       final file=await c.stopVideoRecording();final dir=await getApplicationDocumentsDirectory();
       final path='${dir.path}/green_screen_${DateTime.now().millisecondsSinceEpoch}.mp4';
       final saved=await file.saveTo(path);await GallerySaver.saveVideo(saved,albumName:'Green Screen Shot');
-      if(mounted){setState(()=>{_recording=false,_saving=false});_message('Video saved to your gallery.');}
-    }catch(e){if(mounted){setState(()=>{_recording=false,_saving=false});_message('Could not save video: $e');}}
+      if(mounted){setState(() {_recording=false,_saving=false});_message('Video saved to your gallery.');}
+    }catch(e){if(mounted){setState(() {_recording=false,_saving=false});_message('Could not save video: $e');}}
   }
   void _message(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s)));
   String get _time{final m=(_seconds~/60).toString().padLeft(2,'0');final s=(_seconds%60).toString().padLeft(2,'0');return '$m:$s';}
