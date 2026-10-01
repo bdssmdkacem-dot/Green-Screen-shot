@@ -1,11 +1,23 @@
-# Green Screen Shot
+# Green Screen Shot — Live Green Screen Studio
 
-Android Flutter camera studio for recording a person or object in front of a physical green screen.
+This version adds a live chroma-key rendering path.
 
-Features: front/rear camera, video plus microphone, high resolution, flash, timer, green-screen framing guide, gallery save, and GitHub Actions APK build.
+## Modes
+- **Chroma Key:** works with a physical green screen and is the general solution for both people and objects.
+- **AI segmentation:** planned as a separate mode for people when the background is not green. A person-only segmentation model is not used as the generic object solution.
 
-Current version records the camera feed; the green screen is the physical background used during filming. It does not yet perform AI background removal or chroma-key compositing.
+## Live compositor
+The preview pipeline is:
 
-Next stage can add person segmentation, chroma-key preview, background image/video replacement, transparent export, and object-aware segmentation. Generic object support should use chroma-key or a dedicated segmentation model.
+Camera -> Flutter texture -> GPU fragment shader -> green mask + soft edge -> foreground over background.
 
-Build: run the GitHub Actions workflow named Build Green Screen Shot APK. The APK is uploaded as green-screen-shot-release.
+The shader removes saturated green, softens the transition, and performs limited green-spill suppression.
+
+## Backgrounds
+The UI can use:
+- solid color;
+- a selected image;
+- a looping selected video.
+
+## Next production step
+To export the exact composited frames rather than only preview them, the recorder should move to a GPU/native recording surface (MediaCodec/Surface on Android). This avoids capturing a UI screenshot and preserves real video quality.
