@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:gallery_saver_plus/gallery_saver.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:image_picker/image_picker.dart';
+import 'chroma_key_preview.dart';
+import 'background_layer.dart';
 
 Future<void> main() async { WidgetsFlutterBinding.ensureInitialized(); runApp(const GreenScreenShotApp()); }
 
@@ -20,7 +23,8 @@ class CameraStudioPage extends StatefulWidget { const CameraStudioPage({super.ke
 
 class _CameraStudioPageState extends State<CameraStudioPage> with WidgetsBindingObserver {
   CameraController? _controller; List<CameraDescription> _cameras=[]; int _cameraIndex=0;
-  bool _initializing=true,_recording=false,_saving=false,_showGuide=true; FlashMode _flash=FlashMode.off;
+  bool _initializing=true,_recording=false,_saving=false,_showGuide=true,_chromaKey=true; FlashMode _flash=FlashMode.off;
+  BackgroundSource _background = const BackgroundSource.none();
   Timer? _recordTimer; int _seconds=0; String? _error;
 
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);_start();}
@@ -40,6 +44,14 @@ class _CameraStudioPageState extends State<CameraStudioPage> with WidgetsBinding
     catch(e){await c.dispose();if(mounted)setState(() {_initializing=false,_error=e.toString()});}
   }
   Future<void> _switchCamera() async {if(_cameras.length<2||_recording)return;setState(()=>_initializing=true);await _openCamera((_cameraIndex+1)%_cameras.length);}
+  Future<void> _pickImage() async {
+    final x=await ImagePicker().pickImage(source: ImageSource.gallery);
+    if(x!=null&&mounted)setState(()=>_background=BackgroundSource.image(x.path));
+  }
+  Future<void> _pickVideo() async {
+    final x=await ImagePicker().pickVideo(source: ImageSource.gallery);
+    if(x!=null&&mounted)setState(()=>_background=BackgroundSource.video(x.path));
+  }
   Future<void> _toggleFlash() async {
     final c=_controller;if(c==null||!c.value.isInitialized)return;
     final next=switch(_flash){FlashMode.off=>FlashMode.auto,FlashMode.auto=>FlashMode.always,_=>FlashMode.off};
@@ -66,7 +78,11 @@ class _CameraStudioPageState extends State<CameraStudioPage> with WidgetsBinding
   @override void didChangeAppLifecycleState(AppLifecycleState state){final c=_controller;if(c==null||!c.value.isInitialized)return;if(state==AppLifecycleState.inactive)c.dispose();else if(state==AppLifecycleState.resumed&&!_recording)_openCamera(_cameraIndex);}
   @override void dispose(){_recordTimer?.cancel();WidgetsBinding.instance.removeObserver(this);_controller?.dispose();super.dispose();}
   @override Widget build(BuildContext context){final c=_controller;return Scaffold(body:SafeArea(child:Stack(fit:StackFit.expand,children:[
-    if(c!=null&&c.value.isInitialized)_CameraPreview(c)else _fallback(),
+    if(c!=null&&c.value.isInitialized)
+      (_chromaKey
+        ? ChromaKeyPreview(controller:c,background:BackgroundLayer(source:_background))
+        : _CameraPreview(c))
+    else _fallback(),
     if(_showGuide&&c!=null&&c.value.isInitialized)const IgnorePointer(child:_GreenScreenGuide()),_topBar(),_bottomControls(),if(_saving)_savingOverlay()
   ])));}
   Widget _fallback()=>Container(color:const Color(0xFF07110A),alignment:Alignment.center,padding:const EdgeInsets.all(28),child:_initializing?const CircularProgressIndicator():Column(mainAxisSize:MainAxisSize.min,children:[
@@ -76,7 +92,18 @@ class _CameraStudioPageState extends State<CameraStudioPage> with WidgetsBinding
     const Expanded(child:Text('GREEN SCREEN SHOT',style:TextStyle(fontWeight:FontWeight.w800,letterSpacing:1.2))),
     if(_recording)Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:7),decoration:BoxDecoration(color:Colors.black.withValues(alpha:.72),borderRadius:BorderRadius.circular(20)),child:Row(children:[
       Container(width:9,height:9,decoration:const BoxDecoration(color:Colors.red,shape:BoxShape.circle)),const SizedBox(width:7),Text(_time)])),
-    const SizedBox(width:8),_RoundButton(icon:_showGuide?Icons.crop_free:Icons.crop_square,onTap:()=>setState(()=>_showGuide=!_showGuide))]));
+    const SizedBox(width:8),
+      PopupMenuButton<String>(
+        icon:const Icon(Icons.layers_rounded),
+        onSelected:(v){if(v=='image')_pickImage();if(v=='video')_pickVideo();if(v=='none')setState(()=>_background=const BackgroundSource.none());if(v=='key')setState(()=>_chromaKey=!_chromaKey);},
+        itemBuilder:(_)=>[
+          PopupMenuItem(value:'key',child:Text(_chromaKey?'Disable Chroma Key':'Enable Chroma Key')),
+          const PopupMenuItem(value:'image',child:Text('Background image')),
+          const PopupMenuItem(value:'video',child:Text('Background video')),
+          const PopupMenuItem(value:'none',child:Text('No background')),
+        ],
+      ),
+      _RoundButton(icon:_showGuide?Icons.crop_free:Icons.crop_square,onTap:()=>setState(()=>_showGuide=!_showGuide))]));
   Widget _bottomControls(){final c=_controller;final has=c!=null&&c.value.isInitialized;return Positioned(left:18,right:18,bottom:18,child:Column(children:[
     if(!_recording)Container(margin:const EdgeInsets.only(bottom:12),padding:const EdgeInsets.symmetric(horizontal:14,vertical:9),
       decoration:BoxDecoration(color:Colors.black.withValues(alpha:.65),borderRadius:BorderRadius.circular(18),border:Border.all(color:const Color(0xFF20E070).withValues(alpha:.5))),
