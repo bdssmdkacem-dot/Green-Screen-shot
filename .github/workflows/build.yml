@@ -1,8 +1,9 @@
-name: Build Green Screen Shot APK
+name: Build Green Screen Shot
 on:
   workflow_dispatch:
   push:
     branches: [ main, master ]
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,16 +14,15 @@ jobs:
           channel: stable
           flutter-version: 3.29.3
           cache: true
-      - name: Generate Android project
-        run: flutter create . --platforms=android --project-name green_screen_shot
+      - run: flutter create . --platforms=android --project-name green_screen_shot
       - name: Add camera permissions
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p=Path("android/app/src/main/AndroidManifest.xml")
           s=p.read_text()
-          tag='<uses-permission android:name="android.permission.CAMERA"/>'
-          if tag not in s:
+          marker='<uses-permission android:name="android.permission.CAMERA"/>'
+          if marker not in s:
               s=s.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">','<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.RECORD_AUDIO"/>')
           p.write_text(s)
           PY
